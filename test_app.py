@@ -7,7 +7,10 @@ from app import (
     generate_scatter_data,
     generate_categorical_data,
     generate_distribution_data,
-    generate_heatmap_data
+    generate_heatmap_data,
+    generate_realtime_data,
+    export_data_to_csv,
+    export_data_to_json
 )
 
 
@@ -280,6 +283,105 @@ class TestEdgeCases:
         """Test distribution data with large sample size"""
         df = generate_distribution_data(n_samples=50000)
         assert len(df) == 50000
+        assert not df.isnull().any().any()
+
+
+class TestNewFeatures:
+    """Test suite for new features added in PR"""
+    
+    def test_generate_realtime_data_default(self):
+        """Test realtime data generation with default parameters"""
+        df = generate_realtime_data()
+        
+        assert isinstance(df, pd.DataFrame)
+        assert len(df) == 50  # default n_points
+        assert 'timestamp' in df.columns
+        assert 'value' in df.columns
+        assert 'category' in df.columns
+        assert 'status' in df.columns
+        assert pd.api.types.is_datetime64_any_dtype(df['timestamp'])
+    
+    def test_generate_realtime_data_custom_points(self):
+        """Test realtime data generation with custom number of points"""
+        n_points = 100
+        df = generate_realtime_data(n_points=n_points)
+        
+        assert len(df) == n_points
+        assert not df.isnull().any().any()
+    
+    def test_realtime_data_categories(self):
+        """Test that realtime data has valid categories"""
+        df = generate_realtime_data(n_points=100)
+        
+        unique_categories = df['category'].unique()
+        assert len(unique_categories) <= 3
+        assert all(cat in ['Sensor A', 'Sensor B', 'Sensor C'] 
+                  for cat in unique_categories)
+    
+    def test_realtime_data_status(self):
+        """Test that realtime data has valid status values"""
+        df = generate_realtime_data(n_points=100)
+        
+        unique_statuses = df['status'].unique()
+        assert all(status in ['Normal', 'Warning', 'Critical'] 
+                  for status in unique_statuses)
+    
+    def test_export_data_to_csv(self):
+        """Test CSV export functionality"""
+        df = generate_sine_data(points=100)
+        csv_data = export_data_to_csv(df)
+        
+        assert isinstance(csv_data, bytes)
+        assert len(csv_data) > 0
+        
+        # Verify it's valid CSV by reading it back
+        csv_string = csv_data.decode('utf-8')
+        assert 'x' in csv_string
+        assert 'y' in csv_string
+    
+    def test_export_data_to_json(self):
+        """Test JSON export functionality"""
+        df = generate_sine_data(points=100)
+        json_data = export_data_to_json(df)
+        
+        assert isinstance(json_data, bytes)
+        assert len(json_data) > 0
+        
+        # Verify it's valid JSON
+        json_string = json_data.decode('utf-8')
+        assert '[' in json_string  # JSON array
+        assert '{' in json_string  # JSON objects
+    
+    def test_export_timeseries_to_csv(self):
+        """Test exporting time series data to CSV"""
+        df = generate_timeseries_data(days=30)
+        csv_data = export_data_to_csv(df)
+        
+        assert isinstance(csv_data, bytes)
+        csv_string = csv_data.decode('utf-8')
+        assert 'date' in csv_string
+        assert 'value' in csv_string
+        assert 'category' in csv_string
+    
+    def test_export_scatter_to_json(self):
+        """Test exporting scatter data to JSON"""
+        df = generate_scatter_data(n_points=50)
+        json_data = export_data_to_json(df)
+        
+        assert isinstance(json_data, bytes)
+        assert len(json_data) > 0
+    
+    def test_realtime_data_timestamps_ordered(self):
+        """Test that realtime data timestamps are in chronological order"""
+        df = generate_realtime_data(n_points=50)
+        
+        timestamps = df['timestamp'].tolist()
+        assert timestamps == sorted(timestamps)
+    
+    def test_realtime_data_minimal_points(self):
+        """Test realtime data with minimal points"""
+        df = generate_realtime_data(n_points=1)
+        assert len(df) == 1
         assert not df.isnull().any().any()
 
 
