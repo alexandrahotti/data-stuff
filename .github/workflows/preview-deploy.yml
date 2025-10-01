@@ -1,52 +1,63 @@
 name: PR Preview Deploy (Fly.io)
 
 on:
-    pull_request:
-        types: [opened, synchronize, reopened]
+  pull_request:
+    types: [opened, synchronize, reopened]
 
 jobs:
-    deploy-preview:
-        runs-on: ubuntu-latest
-        permissions:
-            contents: read
-            pull-requests: write
+  deploy-preview:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
 
-        steps:
-            - name: Checkout code
-              uses: actions/checkout@v4
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-            - name: Set app name
-              id: app-name
-              run: |
-                  APP_NAME="data-stuff-pr-${{ github.event.number }}"
-                  echo "app_name=$APP_NAME" >> $GITHUB_OUTPUT
-                  echo "url=https://$APP_NAME.fly.dev" >> $GITHUB_OUTPUT
+      - name: Set app name
+        id: app-name
+        run: |
+          APP_NAME="data-stuff-pr-${{ github.event.number }}"
+          echo "app_name=$APP_NAME" >> $GITHUB_OUTPUT
+          echo "url=https://$APP_NAME.fly.dev" >> $GITHUB_OUTPUT
 
-            - name: Setup Fly.io CLI
-              uses: superfly/flyctl-actions/setup-flyctl@master
+      - name: Setup Fly.io CLI
+        uses: superfly/flyctl-actions/setup-flyctl@master
 
-            - name: Deploy to Fly.io
-              env:
-                  FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-              run: |
-                  # Create app if it doesn't exist
-                  flyctl apps create ${{ steps.app-name.outputs.app_name }} --org personal || echo "App already exists"
+      - name: Create Fly.io app if needed
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          # Try to create app, ignore if it already exists
+          if ! flyctl apps list | grep -q "${{ steps.app-name.outputs.app_name }}"; then
+            echo "Creating new app: ${{ steps.app-name.outputs.app_name }}"
+            flyctl apps create ${{ steps.app-name.outputs.app_name }} --org personal || true
+          else
+            echo "App ${{ steps.app-name.outputs.app_name }} already exists"
+          fi
+        continue-on-error: true
 
-                  # Deploy the app
-                  flyctl deploy \
-                    --app ${{ steps.app-name.outputs.app_name }} \
-                    --remote-only \
-                    --ha=false
+      - name: Deploy to Fly.io
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          # Deploy the app (this will also create it if needed on first deploy)
+          flyctl deploy \
+            --app ${{ steps.app-name.outputs.app_name }} \
+            --config fly.toml \
+            --remote-only \
+            --ha=false
 
-            - name: Comment PR with preview URL
-              uses: thollander/actions-comment-pull-request@v2
-              with:
-                  message: |
-                      ## 🚀 Preview Deployment Ready!
+      - name: Comment PR with preview URL
+        uses: thollander/actions-comment-pull-request@v2
+        with:
+          message: |
+            ## 🚀 Preview Deployment Ready!
 
-                      Your preview environment is deployed and ready to view:
+            Your preview environment is deployed and ready to view:
 
-                      **🔗 Preview URL:** ${{ steps.app-name.outputs.url }}
+            **🔗 Preview URL:** ${{ steps.app-name.outputs.url }}
 
-                      This preview will be automatically updated on new commits and deleted when the PR is closed.
-                  comment_tag: preview_url
+            This preview will be automatically updated on new commits and deleted when the PR is closed.
+          comment_tag: preview_url
