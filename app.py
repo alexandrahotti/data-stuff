@@ -15,26 +15,127 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for better styling
+# Custom CSS for enhanced styling with animations
 st.markdown("""
     <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+    
+    * {
+        font-family: 'Inter', sans-serif;
+    }
+    
     .main {
         padding: 0rem 1rem;
+        animation: fadeIn 0.5s ease-in;
     }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
     .stPlotlyChart {
-        background-color: #f8f9fa;
-        border-radius: 10px;
-        padding: 10px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background-color: #ffffff;
+        border-radius: 15px;
+        padding: 15px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
     }
+    
+    .stPlotlyChart:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+    }
+    
     h1 {
-        color: #1f77b4;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
         padding-bottom: 20px;
+        font-weight: 700;
+        animation: slideInDown 0.6s ease-out;
     }
+    
+    @keyframes slideInDown {
+        from { opacity: 0; transform: translateY(-20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
     .metric-card {
-        background-color: #f0f2f6;
-        padding: 20px;
-        border-radius: 10px;
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        padding: 25px;
+        border-radius: 15px;
         text-align: center;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease;
+    }
+    
+    .metric-card:hover {
+        transform: scale(1.05);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    }
+    
+    .stButton>button {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 10px;
+        padding: 10px 24px;
+        border: none;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    
+    .stButton>button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+    
+    .sidebar .sidebar-content {
+        background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    div[data-testid="stMetricValue"] {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #667eea;
+    }
+    
+    .highlight-box {
+        background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+        padding: 20px;
+        border-radius: 15px;
+        margin: 10px 0;
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.4); }
+        50% { box-shadow: 0 0 0 10px rgba(102, 126, 234, 0); }
+    }
+    
+    /* Data table styling */
+    .dataframe {
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    
+    /* Tab styling */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+    }
+    
+    .stTabs [data-baseweb="tab"] {
+        border-radius: 10px 10px 0 0;
+        padding: 10px 20px;
+        background-color: #f5f7fa;
+    }
+    
+    .stTabs [aria-selected="true"] {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -109,25 +210,66 @@ def generate_heatmap_data(size=10):
     return df.corr()
 
 
+def generate_realtime_data(n_points=50):
+    """Generate data for animated/realtime visualization"""
+    timestamps = pd.date_range(start=datetime.now() - timedelta(minutes=n_points-1), 
+                               periods=n_points, freq='1min')
+    
+    values = np.cumsum(np.random.randn(n_points)) + 100
+    categories = np.random.choice(['Sensor A', 'Sensor B', 'Sensor C'], n_points)
+    
+    return pd.DataFrame({
+        'timestamp': timestamps,
+        'value': values,
+        'category': categories,
+        'status': np.random.choice(['Normal', 'Warning', 'Critical'], n_points, p=[0.7, 0.2, 0.1])
+    })
+
+
+def export_data_to_csv(df, filename="data_export"):
+    """Convert dataframe to CSV for download"""
+    return df.to_csv(index=False).encode('utf-8')
+
+
+def export_data_to_json(df, filename="data_export"):
+    """Convert dataframe to JSON for download"""
+    return df.to_json(orient='records', date_format='iso').encode('utf-8')
+
+
 # Main App
 def main():
     st.title("📊 Data Visualization Dashboard")
     st.markdown("### Interactive visualizations with dummy data")
     
     # Sidebar
-    st.sidebar.title("Navigation")
+    st.sidebar.title("🎯 Navigation")
     page = st.sidebar.radio(
         "Select Visualization Type",
         ["Overview", "Time Series", "Scatter Plots", "Distributions", 
-         "Categorical Data", "Correlation Analysis", "Wave Patterns"]
+         "Categorical Data", "Correlation Analysis", "Wave Patterns", "Animated Charts", "Data Export"]
     )
     
     st.sidebar.markdown("---")
-    st.sidebar.markdown("### About")
+    st.sidebar.markdown("### 📊 About")
     st.sidebar.info(
         "This dashboard demonstrates various data visualization techniques "
         "using Plotly, Matplotlib, and Seaborn with dynamically generated dummy data."
     )
+    
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("### ⚡ Quick Actions")
+    
+    # Theme toggle (visual indicator)
+    theme = st.sidebar.selectbox("🎨 Color Scheme", ["Default", "Dark Mode", "Light Mode"])
+    
+    # Data refresh
+    if st.sidebar.button("🔄 Refresh All Data"):
+        st.rerun()
+    
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("### 📈 Statistics")
+    st.sidebar.metric("Total Views", "12.5K", "+2.3K")
+    st.sidebar.metric("Active Users", "847", "+123")
     
     # Page routing
     if page == "Overview":
@@ -144,6 +286,10 @@ def main():
         show_correlation()
     elif page == "Wave Patterns":
         show_wave_patterns()
+    elif page == "Animated Charts":
+        show_animated_charts()
+    elif page == "Data Export":
+        show_data_export()
 
 
 def show_overview():
@@ -450,6 +596,243 @@ def show_wave_patterns():
                      scene=dict(xaxis_title='X', yaxis_title='Y', zaxis_title='Z'),
                      height=600)
     st.plotly_chart(fig, use_container_width=True)
+
+
+def show_animated_charts():
+    st.header("🎬 Animated Charts & Real-Time Data")
+    
+    st.markdown("""
+    <div class="highlight-box">
+        <h3>✨ New Feature!</h3>
+        <p>Explore animated visualizations and simulated real-time data streams.</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Controls
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        n_points = st.slider("Number of data points", 20, 100, 50)
+        animation_speed = st.slider("Animation speed (ms)", 50, 500, 100)
+    
+    with col2:
+        chart_type = st.selectbox("Chart Type", ["Line", "Bar", "Scatter", "Area"])
+        show_status = st.checkbox("Show status indicators", value=True)
+    
+    # Generate data
+    data = generate_realtime_data(n_points=n_points)
+    
+    # Create animated chart
+    st.subheader("Simulated Real-Time Data Stream")
+    
+    if chart_type == "Line":
+        fig = px.line(data, x='timestamp', y='value', color='category',
+                     title='Real-Time Sensor Data',
+                     template='plotly_white')
+    elif chart_type == "Bar":
+        fig = px.bar(data, x='timestamp', y='value', color='category',
+                    title='Real-Time Sensor Data',
+                    template='plotly_white')
+    elif chart_type == "Scatter":
+        fig = px.scatter(data, x='timestamp', y='value', color='category',
+                        size=[10]*len(data),
+                        title='Real-Time Sensor Data',
+                        template='plotly_white')
+    else:  # Area
+        fig = px.area(data, x='timestamp', y='value', color='category',
+                     title='Real-Time Sensor Data',
+                     template='plotly_white')
+    
+    fig.update_layout(height=500, hovermode='x unified')
+    st.plotly_chart(fig, use_container_width=True)
+    
+    # Status indicators
+    if show_status:
+        st.subheader("📊 Status Overview")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        status_counts = data['status'].value_counts()
+        
+        with col1:
+            normal_count = status_counts.get('Normal', 0)
+            st.metric("🟢 Normal", normal_count, 
+                     f"{(normal_count/len(data)*100):.1f}%")
+        
+        with col2:
+            warning_count = status_counts.get('Warning', 0)
+            st.metric("🟡 Warning", warning_count, 
+                     f"{(warning_count/len(data)*100):.1f}%")
+        
+        with col3:
+            critical_count = status_counts.get('Critical', 0)
+            st.metric("🔴 Critical", critical_count, 
+                     f"{(critical_count/len(data)*100):.1f}%")
+    
+    # Animated scatter with frames
+    st.subheader("🎯 Time-Based Animation")
+    
+    # Create frames for animation
+    data['frame'] = pd.cut(range(len(data)), bins=10, labels=range(10))
+    
+    fig = px.scatter(data, x='timestamp', y='value', 
+                    color='category', size='value',
+                    animation_frame='frame',
+                    title='Animated Time Series',
+                    template='plotly_white',
+                    range_y=[data['value'].min()-10, data['value'].max()+10])
+    
+    fig.update_layout(height=500)
+    st.plotly_chart(fig, use_container_width=True)
+    
+    # Live data table
+    if st.checkbox("Show live data table"):
+        st.dataframe(data[['timestamp', 'value', 'category', 'status']].tail(20), 
+                    use_container_width=True)
+
+
+def show_data_export():
+    st.header("📥 Data Export & Download")
+    
+    st.markdown("""
+    <div class="highlight-box">
+        <h3>💾 Export Your Data</h3>
+        <p>Generate and download data in multiple formats for further analysis.</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Data selection
+    st.subheader("1️⃣ Select Data Type")
+    
+    data_type = st.selectbox(
+        "Choose the type of data to export",
+        ["Time Series", "Sine Wave", "Scatter Data", "Distribution Data", 
+         "Categorical Data", "Correlation Matrix", "Real-Time Data"]
+    )
+    
+    # Generate selected data
+    st.subheader("2️⃣ Configure Parameters")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        if data_type == "Time Series":
+            days = st.slider("Days of data", 30, 730, 365)
+            data = generate_timeseries_data(days=days)
+            preview_data = data
+            
+        elif data_type == "Sine Wave":
+            frequency = st.slider("Frequency", 0.5, 5.0, 1.0, 0.1)
+            amplitude = st.slider("Amplitude", 0.5, 3.0, 1.0, 0.1)
+            points = st.slider("Number of points", 100, 5000, 1000)
+            data = generate_sine_data(frequency=frequency, amplitude=amplitude, points=points)
+            preview_data = data
+            
+        elif data_type == "Scatter Data":
+            n_points = st.slider("Number of points", 100, 5000, 500)
+            data = generate_scatter_data(n_points=n_points)
+            preview_data = data
+            
+        elif data_type == "Distribution Data":
+            n_samples = st.slider("Number of samples", 500, 10000, 1000)
+            data = generate_distribution_data(n_samples=n_samples)
+            preview_data = data
+            
+        elif data_type == "Categorical Data":
+            data = generate_categorical_data()
+            preview_data = data
+            
+        elif data_type == "Correlation Matrix":
+            size = st.slider("Matrix size", 5, 20, 10)
+            data = generate_heatmap_data(size=size)
+            preview_data = data
+            
+        else:  # Real-Time Data
+            n_points = st.slider("Number of points", 20, 200, 50)
+            data = generate_realtime_data(n_points=n_points)
+            preview_data = data
+    
+    with col2:
+        export_format = st.selectbox(
+            "Export format",
+            ["CSV", "JSON", "Excel (XLSX)"]
+        )
+        
+        include_index = st.checkbox("Include index", value=False)
+        
+        st.metric("Data Points", len(data))
+        st.metric("Columns", len(data.columns) if hasattr(data, 'columns') else 'N/A')
+    
+    # Preview
+    st.subheader("3️⃣ Preview Data")
+    
+    with st.expander("📊 View Data Preview", expanded=True):
+        st.dataframe(preview_data.head(50), use_container_width=True)
+    
+    # Statistics
+    with st.expander("📈 Data Statistics"):
+        if hasattr(preview_data, 'describe'):
+            st.dataframe(preview_data.describe(), use_container_width=True)
+    
+    # Download section
+    st.subheader("4️⃣ Download Data")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename_base = f"{data_type.lower().replace(' ', '_')}_{timestamp}"
+    
+    with col1:
+        if export_format == "CSV":
+            csv_data = export_data_to_csv(data)
+            st.download_button(
+                label="⬇️ Download CSV",
+                data=csv_data,
+                file_name=f"{filename_base}.csv",
+                mime="text/csv",
+                use_container_width=True
+            )
+    
+    with col2:
+        if export_format == "JSON":
+            json_data = export_data_to_json(data)
+            st.download_button(
+                label="⬇️ Download JSON",
+                data=json_data,
+                file_name=f"{filename_base}.json",
+                mime="application/json",
+                use_container_width=True
+            )
+    
+    with col3:
+        if export_format == "Excel (XLSX)":
+            st.info("📝 Excel export requires openpyxl package")
+            st.code("pip install openpyxl", language="bash")
+    
+    # Bulk export option
+    st.subheader("5️⃣ Bulk Export (All Data Types)")
+    
+    if st.button("📦 Generate All Datasets", use_container_width=True):
+        with st.spinner("Generating all datasets..."):
+            all_datasets = {
+                "time_series": generate_timeseries_data(),
+                "sine_wave": generate_sine_data(),
+                "scatter": generate_scatter_data(),
+                "distribution": generate_distribution_data(),
+                "categorical": generate_categorical_data(),
+            }
+            
+            st.success("✅ All datasets generated!")
+            
+            for name, dataset in all_datasets.items():
+                csv = export_data_to_csv(dataset)
+                st.download_button(
+                    label=f"⬇️ Download {name.replace('_', ' ').title()}",
+                    data=csv,
+                    file_name=f"{name}_{timestamp}.csv",
+                    mime="text/csv",
+                    key=f"download_{name}"
+                )
 
 
 if __name__ == "__main__":
