@@ -1,5 +1,5 @@
 # Fly.io configuration for Streamlit app
-app = "data-stuff-preview"  # Base name; will be suffixed by PR number in CI
+app = "data-stuff-main"  # Main production app
 primary_region = "iad"  # Washington DC - change to your preferred region
 
 [build]
