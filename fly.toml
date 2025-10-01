@@ -1,0 +1,20 @@
+# Fly.io configuration for Streamlit app
+app = "data-stuff-preview"  # Base name; will be suffixed by PR number in CI
+primary_region = "iad"  # Washington DC - change to your preferred region
+
+[build]
+  [build.args]
+    PORT = "8501"
+
+[http_service]
+  internal_port = 8501
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 1024
+
