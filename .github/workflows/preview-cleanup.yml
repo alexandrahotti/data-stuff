@@ -1,0 +1,28 @@
+name: PR Preview Cleanup (Fly.io)
+
+on:
+    pull_request:
+        types: [closed]
+
+jobs:
+    cleanup:
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+
+        steps:
+            - name: Set app name
+              id: app-name
+              run: |
+                  APP_NAME="data-stuff-pr-${{ github.event.number }}"
+                  echo "app_name=$APP_NAME" >> $GITHUB_OUTPUT
+
+            - name: Setup Fly.io CLI
+              uses: superfly/flyctl-actions/setup-flyctl@master
+
+            - name: Delete Fly.io app
+              env:
+                  FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+              run: |
+                  echo "Deleting preview app: ${{ steps.app-name.outputs.app_name }}"
+                  flyctl apps destroy ${{ steps.app-name.outputs.app_name }} --yes || echo "App not found or already deleted"
