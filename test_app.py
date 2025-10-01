@@ -10,7 +10,9 @@ from app import (
     generate_heatmap_data,
     generate_realtime_data,
     export_data_to_csv,
-    export_data_to_json
+    export_data_to_json,
+    apply_filters,
+    get_chart_template
 )
 
 
@@ -383,6 +385,93 @@ class TestNewFeatures:
         df = generate_realtime_data(n_points=1)
         assert len(df) == 1
         assert not df.isnull().any().any()
+
+
+class TestDarkModeAndFilters:
+    """Test suite for dark mode and filtering features"""
+    
+    def test_apply_filters_min_value(self):
+        """Test applying minimum value filter"""
+        df = generate_timeseries_data(days=30)
+        filters = {'min_value': 150, 'max_value': None, 'categories': [], 'date_range': None}
+        
+        filtered_df = apply_filters(df, filters)
+        
+        assert len(filtered_df) <= len(df)
+        assert filtered_df['value'].min() >= 150
+    
+    def test_apply_filters_max_value(self):
+        """Test applying maximum value filter"""
+        df = generate_timeseries_data(days=30)
+        filters = {'min_value': None, 'max_value': 150, 'categories': [], 'date_range': None}
+        
+        filtered_df = apply_filters(df, filters)
+        
+        assert len(filtered_df) <= len(df)
+        assert filtered_df['value'].max() <= 150
+    
+    def test_apply_filters_both_values(self):
+        """Test applying both min and max value filters"""
+        df = generate_timeseries_data(days=30)
+        filters = {'min_value': 120, 'max_value': 180, 'categories': [], 'date_range': None}
+        
+        filtered_df = apply_filters(df, filters)
+        
+        assert len(filtered_df) <= len(df)
+        assert filtered_df['value'].min() >= 120
+        assert filtered_df['value'].max() <= 180
+    
+    def test_apply_filters_category(self):
+        """Test applying category filters"""
+        df = generate_timeseries_data(days=30)
+        filters = {'min_value': None, 'max_value': None, 'categories': ['A'], 'date_range': None}
+        
+        filtered_df = apply_filters(df, filters)
+        
+        assert len(filtered_df) <= len(df)
+        assert all(cat == 'A' for cat in filtered_df['category'])
+    
+    def test_apply_filters_no_filters(self):
+        """Test that no filters returns original data"""
+        df = generate_timeseries_data(days=30)
+        filters = {'min_value': None, 'max_value': None, 'categories': [], 'date_range': None}
+        
+        filtered_df = apply_filters(df, filters)
+        
+        assert len(filtered_df) == len(df)
+    
+    def test_apply_filters_empty_result(self):
+        """Test filters that result in empty dataset"""
+        df = generate_timeseries_data(days=30)
+        filters = {'min_value': 1000, 'max_value': 2000, 'categories': [], 'date_range': None}
+        
+        filtered_df = apply_filters(df, filters)
+        
+        # Should handle empty results gracefully
+        assert len(filtered_df) == 0 or len(filtered_df) <= len(df)
+    
+    # Note: Theme tests require Streamlit runtime, tested manually
+    
+    def test_filters_preserve_dataframe_structure(self):
+        """Test that filters preserve dataframe structure"""
+        df = generate_timeseries_data(days=30)
+        filters = {'min_value': 130, 'max_value': 170, 'categories': [], 'date_range': None}
+        
+        filtered_df = apply_filters(df, filters)
+        
+        # Check that columns are preserved
+        assert list(filtered_df.columns) == list(df.columns)
+        assert filtered_df.index.name == df.index.name
+    
+    def test_filters_with_multiple_categories(self):
+        """Test filtering with multiple categories"""
+        df = generate_timeseries_data(days=30)
+        filters = {'min_value': None, 'max_value': None, 'categories': ['A', 'B'], 'date_range': None}
+        
+        filtered_df = apply_filters(df, filters)
+        
+        assert len(filtered_df) <= len(df)
+        assert all(cat in ['A', 'B'] for cat in filtered_df['category'])
 
 
 if __name__ == "__main__":

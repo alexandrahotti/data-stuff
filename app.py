@@ -6,6 +6,7 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import matplotlib.pyplot as plt
 import seaborn as sns
+import json
 
 # Page configuration
 st.set_page_config(
@@ -15,130 +16,252 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for enhanced styling with animations
-st.markdown("""
-    <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-    
-    * {
-        font-family: 'Inter', sans-serif;
+# Initialize session state for theme and filters
+if 'dark_mode' not in st.session_state:
+    st.session_state.dark_mode = False
+if 'filters' not in st.session_state:
+    st.session_state.filters = {
+        'min_value': None,
+        'max_value': None,
+        'categories': [],
+        'date_range': None
     }
-    
-    .main {
-        padding: 0rem 1rem;
-        animation: fadeIn 0.5s ease-in;
-    }
-    
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(10px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-    
-    .stPlotlyChart {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        background-color: #ffffff;
-        border-radius: 15px;
-        padding: 15px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
-    }
-    
-    .stPlotlyChart:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
-    }
-    
-    h1 {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        padding-bottom: 20px;
-        font-weight: 700;
-        animation: slideInDown 0.6s ease-out;
-    }
-    
-    @keyframes slideInDown {
-        from { opacity: 0; transform: translateY(-20px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-    
-    .metric-card {
-        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-        padding: 25px;
-        border-radius: 15px;
-        text-align: center;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        transition: all 0.3s ease;
-    }
-    
-    .metric-card:hover {
-        transform: scale(1.05);
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-    }
-    
-    .stButton>button {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border-radius: 10px;
-        padding: 10px 24px;
-        border: none;
-        font-weight: 600;
-        transition: all 0.3s ease;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    }
-    
-    .stButton>button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    }
-    
-    .sidebar .sidebar-content {
-        background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
-    }
-    
-    div[data-testid="stMetricValue"] {
-        font-size: 2rem;
-        font-weight: 700;
-        color: #667eea;
-    }
-    
-    .highlight-box {
-        background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
-        padding: 20px;
-        border-radius: 15px;
-        margin: 10px 0;
-        animation: pulse 2s infinite;
-    }
-    
-    @keyframes pulse {
-        0%, 100% { box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.4); }
-        50% { box-shadow: 0 0 0 10px rgba(102, 126, 234, 0); }
-    }
-    
-    /* Data table styling */
-    .dataframe {
-        border-radius: 10px;
-        overflow: hidden;
-    }
-    
-    /* Tab styling */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
-    }
-    
-    .stTabs [data-baseweb="tab"] {
-        border-radius: 10px 10px 0 0;
-        padding: 10px 20px;
-        background-color: #f5f7fa;
-    }
-    
-    .stTabs [aria-selected="true"] {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-    }
-    </style>
-    """, unsafe_allow_html=True)
+if 'comparison_mode' not in st.session_state:
+    st.session_state.comparison_mode = False
+
+# Dynamic CSS based on theme
+def get_theme_css(dark_mode=False):
+    if dark_mode:
+        return """
+        <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .main {
+            background-color: #1a1a2e !important;
+            color: #eaeaea !important;
+            padding: 0rem 1rem;
+            animation: fadeIn 0.5s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .stPlotlyChart {
+            background-color: #16213e !important;
+            border-radius: 15px;
+            padding: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .stPlotlyChart:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.5);
+        }
+        
+        h1, h2, h3, h4, h5, h6 {
+            background: linear-gradient(135deg, #f39c12 0%, #e74c3c 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: 700;
+            animation: slideInDown 0.6s ease-out;
+        }
+        
+        @keyframes slideInDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .metric-card {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            padding: 25px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+        }
+        
+        .stButton>button {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            color: white;
+            border-radius: 10px;
+            padding: 10px 24px;
+            border: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        div[data-testid="stMetricValue"] {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #f39c12 !important;
+        }
+        
+        .highlight-box {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            padding: 20px;
+            border-radius: 15px;
+            margin: 10px 0;
+            border: 2px solid #f39c12;
+        }
+        
+        [data-testid="stSidebar"] {
+            background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+        }
+        
+        .stTabs [data-baseweb="tab"] {
+            background-color: #2c3e50;
+            color: #eaeaea;
+        }
+        
+        .stTabs [aria-selected="true"] {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            color: white;
+        }
+        
+        .filter-container {
+            background-color: #16213e;
+            padding: 20px;
+            border-radius: 15px;
+            margin: 15px 0;
+            border: 2px solid #f39c12;
+        }
+        </style>
+        """
+    else:
+        return """
+        <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .main {
+            padding: 0rem 1rem;
+            animation: fadeIn 0.5s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .stPlotlyChart {
+            background-color: #ffffff;
+            border-radius: 15px;
+            padding: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .stPlotlyChart:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        h1 {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            padding-bottom: 20px;
+            font-weight: 700;
+            animation: slideInDown 0.6s ease-out;
+        }
+        
+        @keyframes slideInDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .metric-card {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            padding: 25px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+        
+        .metric-card:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+        
+        .stButton>button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 10px;
+            padding: 10px 24px;
+            border: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .stButton>button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        
+        div[data-testid="stMetricValue"] {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #667eea;
+        }
+        
+        .highlight-box {
+            background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+            padding: 20px;
+            border-radius: 15px;
+            margin: 10px 0;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.4); }
+            50% { box-shadow: 0 0 0 10px rgba(102, 126, 234, 0); }
+        }
+        
+        .stTabs [data-baseweb="tab-list"] {
+            gap: 8px;
+        }
+        
+        .stTabs [data-baseweb="tab"] {
+            border-radius: 10px 10px 0 0;
+            padding: 10px 20px;
+            background-color: #f5f7fa;
+        }
+        
+        .stTabs [aria-selected="true"] {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .filter-container {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 15px;
+            margin: 15px 0;
+            border: 2px solid #667eea;
+        }
+        </style>
+        """
+
+# Apply theme (only if in Streamlit runtime)
+try:
+    st.markdown(get_theme_css(st.session_state.dark_mode), unsafe_allow_html=True)
+except (AttributeError, KeyError):
+    # Handle case when running tests or outside Streamlit runtime
+    st.markdown(get_theme_css(False), unsafe_allow_html=True)
 
 
 def generate_sine_data(frequency=1, amplitude=1, phase=0, points=1000):
@@ -236,6 +359,38 @@ def export_data_to_json(df, filename="data_export"):
     return df.to_json(orient='records', date_format='iso').encode('utf-8')
 
 
+def apply_filters(df, filters):
+    """Apply filters to dataframe based on filter settings"""
+    filtered_df = df.copy()
+    
+    # Apply numeric value filters
+    if filters.get('min_value') is not None and 'value' in filtered_df.columns:
+        filtered_df = filtered_df[filtered_df['value'] >= filters['min_value']]
+    
+    if filters.get('max_value') is not None and 'value' in filtered_df.columns:
+        filtered_df = filtered_df[filtered_df['value'] <= filters['max_value']]
+    
+    # Apply category filters
+    if filters.get('categories') and len(filters['categories']) > 0:
+        if 'category' in filtered_df.columns:
+            filtered_df = filtered_df[filtered_df['category'].isin(filters['categories'])]
+    
+    # Apply date range filters
+    if filters.get('date_range') and 'date' in filtered_df.columns:
+        start_date, end_date = filters['date_range']
+        filtered_df = filtered_df[
+            (filtered_df['date'] >= start_date) & 
+            (filtered_df['date'] <= end_date)
+        ]
+    
+    return filtered_df
+
+
+def get_chart_template():
+    """Get plotly template based on theme"""
+    return 'plotly_dark' if st.session_state.dark_mode else 'plotly_white'
+
+
 # Main App
 def main():
     st.title("📊 Data Visualization Dashboard")
@@ -259,17 +414,57 @@ def main():
     st.sidebar.markdown("---")
     st.sidebar.markdown("### ⚡ Quick Actions")
     
-    # Theme toggle (visual indicator)
-    theme = st.sidebar.selectbox("🎨 Color Scheme", ["Default", "Dark Mode", "Light Mode"])
+    # Functional Dark Mode Toggle
+    dark_mode_label = "🌙 Dark Mode" if not st.session_state.dark_mode else "☀️ Light Mode"
+    if st.sidebar.button(dark_mode_label, use_container_width=True):
+        st.session_state.dark_mode = not st.session_state.dark_mode
+        st.rerun()
+    
+    # Comparison Mode Toggle
+    comparison_label = "📊 Enable Comparison" if not st.session_state.comparison_mode else "📊 Disable Comparison"
+    if st.sidebar.button(comparison_label, use_container_width=True):
+        st.session_state.comparison_mode = not st.session_state.comparison_mode
+        st.rerun()
     
     # Data refresh
-    if st.sidebar.button("🔄 Refresh All Data"):
+    if st.sidebar.button("🔄 Refresh All Data", use_container_width=True):
+        st.rerun()
+    
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("### 🔍 Data Filters")
+    
+    # Numeric filters
+    use_value_filter = st.sidebar.checkbox("Enable Value Filters")
+    if use_value_filter:
+        col1, col2 = st.sidebar.columns(2)
+        with col1:
+            min_val = st.number_input("Min", value=0.0, key="min_filter")
+            st.session_state.filters['min_value'] = min_val
+        with col2:
+            max_val = st.number_input("Max", value=200.0, key="max_filter")
+            st.session_state.filters['max_value'] = max_val
+    else:
+        st.session_state.filters['min_value'] = None
+        st.session_state.filters['max_value'] = None
+    
+    # Clear filters
+    if st.sidebar.button("🗑️ Clear All Filters", use_container_width=True):
+        st.session_state.filters = {
+            'min_value': None,
+            'max_value': None,
+            'categories': [],
+            'date_range': None
+        }
         st.rerun()
     
     st.sidebar.markdown("---")
     st.sidebar.markdown("### 📈 Statistics")
     st.sidebar.metric("Total Views", "12.5K", "+2.3K")
     st.sidebar.metric("Active Users", "847", "+123")
+    
+    # Theme indicator
+    theme_emoji = "🌙" if st.session_state.dark_mode else "☀️"
+    st.sidebar.metric("Current Theme", f"{theme_emoji} {'Dark' if st.session_state.dark_mode else 'Light'}")
     
     # Page routing
     if page == "Overview":
@@ -351,27 +546,63 @@ def show_overview():
 def show_timeseries():
     st.header("Time Series Analysis")
     
+    # Filter indicator
+    if st.session_state.filters['min_value'] or st.session_state.filters['max_value']:
+        st.info(f"🔍 Filters Active: Min={st.session_state.filters['min_value']}, Max={st.session_state.filters['max_value']}")
+    
     # Controls
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
     with col1:
         days = st.slider("Number of days", 30, 730, 365)
     with col2:
         show_category = st.checkbox("Show by category", value=False)
+    with col3:
+        apply_filter = st.checkbox("Apply Filters", value=True)
     
     # Generate and plot data
     data = generate_timeseries_data(days=days)
     
-    if show_category:
-        fig = px.line(data, x='date', y='value', color='category',
-                     title='Time Series by Category',
-                     template='plotly_white')
-    else:
-        fig = px.line(data, x='date', y='value',
-                     title='Time Series Data',
-                     template='plotly_white')
+    # Apply filters if enabled
+    if apply_filter:
+        data_before_filter = len(data)
+        data = apply_filters(data, st.session_state.filters)
+        data_after_filter = len(data)
+        if data_before_filter != data_after_filter:
+            st.success(f"✅ Filtered: {data_before_filter} → {data_after_filter} data points")
     
-    fig.update_layout(height=500, hovermode='x unified')
-    st.plotly_chart(fig, use_container_width=True)
+    # Comparison mode
+    if st.session_state.comparison_mode:
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.subheader("Filtered Data")
+            filtered_data = apply_filters(data, st.session_state.filters)
+            fig1 = px.line(filtered_data, x='date', y='value', color='category' if show_category else None,
+                         title='With Filters',
+                         template=get_chart_template())
+            fig1.update_layout(height=400)
+            st.plotly_chart(fig1, use_container_width=True)
+        
+        with col2:
+            st.subheader("All Data")
+            fig2 = px.line(generate_timeseries_data(days=days), x='date', y='value', 
+                         color='category' if show_category else None,
+                         title='Without Filters',
+                         template=get_chart_template())
+            fig2.update_layout(height=400)
+            st.plotly_chart(fig2, use_container_width=True)
+    else:
+        if show_category:
+            fig = px.line(data, x='date', y='value', color='category',
+                         title='Time Series by Category',
+                         template=get_chart_template())
+        else:
+            fig = px.line(data, x='date', y='value',
+                         title='Time Series Data',
+                         template=get_chart_template())
+        
+        fig.update_layout(height=500, hovermode='x unified')
+        st.plotly_chart(fig, use_container_width=True)
     
     # Statistics
     st.subheader("Statistics")
